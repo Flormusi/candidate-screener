@@ -26,6 +26,95 @@ Respond ONLY with valid JSON. No markdown, no code fences.
 }`
 }
 
+// Second pass — challenges first pass verdict
+export function buildChallengePrompt(firstResult, cvText, role) {
+  return `You are a senior recruiter reviewing a colleague's screening verdict. Your job is to challenge it — look for evidence they missed, biases that crept in, and either confirm or overturn the verdict.
+
+ROLE: ${role.title}${role.company ? ` at ${role.company}` : ''}
+MUST HAVE: ${role.must_have?.join(', ') || 'N/A'}
+KEY TECHNOLOGIES: ${role.key_technologies?.join(', ') || 'N/A'}
+
+FIRST PASS VERDICT: ${firstResult.verdict} (fit score: ${firstResult.fit_score}/100)
+FIRST PASS JUSTIFICATION: ${firstResult.justification}
+FIRST PASS STRENGTHS: ${firstResult.strengths?.join('; ')}
+FIRST PASS GAPS: ${firstResult.gaps?.join('; ')}
+
+CANDIDATE DOCUMENTS:
+---
+${cvText}
+---
+
+YOUR JOB — apply each of these in order:
+
+1. GROUNDING CHECK: For every strength and gap in the first pass, ask: is this traceable to a specific transcript statement? If a strength is based on a CV keyword not confirmed in the call — remove it or mark it unconfirmed. If the candidate explicitly downplayed or disclaimed a skill, that is a gap regardless of what the CV says.
+
+2. SCORE INFLATION CHECK: If a phone screen is present, the fit_score should reflect what was SAID, not what the CV claims. CV keywords with no call confirmation should not count toward Skills or Seniority dimensions. Adjust the score if the first pass over-relied on resume claims.
+
+3. LOGISTICS MANDATORY: Re-scan the transcript for salary expectations, notice period, availability, and job search status. If the first pass says "not specified" for any of these but the call covered it — add them to added_gaps or challenge_notes with the exact figure mentioned.
+
+4. RESPONSE QUALITY vs SKILL GAP — distinguish these separately:
+   - Skill/experience gap: candidate lacks a tool, platform, or domain the role requires.
+   - Response quality risk: candidate gave vague, generic, or example-free answers when concrete detail was expected. Note this separately — it is a seniority signal, not a skill gap.
+
+5. SCALE AND CLIENT-TYPE MATCH: Compare the size/complexity of the candidate's named clients and projects to the role context. Small-scale or local experience is a meaningful gap for an enterprise or high-growth role.
+
+6. NO FILLER GAPS: Only add gaps with textual evidence from the transcript or resume. Do not invent abstract competency gaps ("unclear data orientation") unless the candidate was asked about it and gave a weak or negative answer.
+
+7. DECIDE: CONFIRM the verdict, UPGRADE it (e.g. Flag → Pass), or DOWNGRADE it (e.g. Pass → Flag, or Pass → No Pass if the call revealed a hard blocker)
+
+Respond ONLY with valid JSON. No markdown, no code fences.
+
+{
+  "action": "confirm" | "upgrade" | "downgrade",
+  "final_verdict": "Pass" | "Flag for Review" | "No Pass",
+  "final_fit_score": 0-100,
+  "final_score_breakdown": {
+    "skills": 0-100,
+    "seniority": 0-100,
+    "industry": 0-100,
+    "trajectory": 0-100
+  },
+  "challenge_notes": "2-3 sentences on what the first pass got wrong or right — be specific about what evidence was missed or misread",
+  "revised_justification": "2-3 sentences final justification incorporating both passes",
+  "added_strengths": ["strengths the first pass missed — empty array if none"],
+  "removed_gaps": ["gaps from first pass that are actually non-issues — empty array if none"],
+  "added_gaps": ["new concerns the first pass missed — empty array if none"]
+}`
+}
+
+// Role interpretation — what the client REALLY needs
+export function buildRoleInterpretationPrompt(role) {
+  return `You are a senior technical recruiter with 15 years of experience placing engineers at tech companies. Your job is to interpret this role description beyond the surface-level keywords — think like a recruiter who has filled 50 similar roles and knows what clients actually need vs what they write.
+
+ROLE: ${role.title}${role.company ? ` at ${role.company}` : ''}
+SENIORITY: ${role.seniority || 'not specified'}
+MUST HAVE: ${role.must_have?.join(', ') || 'N/A'}
+NICE TO HAVE: ${role.nice_to_have?.join(', ') || 'N/A'}
+KEY TECHNOLOGIES: ${role.key_technologies?.join(', ') || 'N/A'}
+YEARS EXP: ${role.years_experience_min || 'not specified'}
+${role.extra_requirements ? `ADDITIONAL CONTEXT: ${role.extra_requirements}` : ''}
+
+Go deep. Think about:
+- What kind of company stage does this imply? What are they actually trying to solve?
+- Is this a "build from scratch" or "scale what exists" role?
+- What kind of candidate background actually succeeds here vs fails?
+- What are the unwritten requirements that experienced recruiters know to look for?
+- What type of candidate looks good on paper but will fail in this role?
+
+Respond ONLY with valid JSON. No markdown, no code fences.
+
+{
+  "real_need": "2-3 sentences on what the client REALLY needs — the business problem behind the hire, not just the tech stack",
+  "builder_or_scaler": "Builder" | "Scaler" | "Either",
+  "builder_or_scaler_reason": "one sentence explaining why",
+  "ideal_stage_background": "what company stage/size/type the ideal candidate should come from and why",
+  "hidden_requirements": ["2-4 things not written in the JD but implied by context — e.g. 'startup pace tolerance', 'ability to work without a design system', 'async communication skills for distributed team'"],
+  "likely_dealbreakers": ["2-3 things that would actually kill the hire even if the CV looks good — e.g. 'only enterprise background', 'never owned a product end-to-end', 'no client-facing experience'"],
+  "ideal_profile_summary": "3-4 sentence plain-English description of the ideal candidate for this specific role — who they are, where they come from, what they've done",
+  "screening_lens": "one paragraph on how to READ candidate CVs for this specific role — what signals to weight heavily, what to discount, what patterns predict success vs failure here"
+}`
+}
+
 // Analyze client rejection feedback patterns
 export function buildRejectionAnalysisPrompt(feedbacks, role) {
   const entries = feedbacks.map((f, i) =>
@@ -398,7 +487,18 @@ export function buildScreeningPrompt(cvText, role) {
     ? 'Must be based in US or Canada. Reject if outside these countries.'
     : `Location requirement: ${role.location || 'none specified'}`
 
-  return `You are a senior technical recruiter screening a candidate for the following role. You think like an experienced human recruiter — not a checkbox parser.
+  const intel = role.interpretation
+  const intelBlock = intel ? `
+ROLE INTELLIGENCE (AI interpretation of what this client REALLY needs — use this to calibrate your screening):
+- Real need: ${intel.real_need}
+- Pattern: ${intel.builder_or_scaler} — ${intel.builder_or_scaler_reason}
+- Ideal background: ${intel.ideal_stage_background}
+- Hidden requirements: ${intel.hidden_requirements?.join(' | ')}
+- Likely dealbreakers: ${intel.likely_dealbreakers?.join(' | ')}
+- How to read CVs for this role: ${intel.screening_lens}
+` : ''
+
+  return `You are a senior technical recruiter screening a candidate for the following role. You think like an experienced human recruiter — not a checkbox parser.${intelBlock}
 
 ROLE: ${role.title}${role.company ? ` at ${role.company}` : ''}
 LOCATION: ${locationCtx}
@@ -423,6 +523,13 @@ FLAG FOR REVIEW (not auto-reject):
 - No LinkedIn URL provided
 - Email domain is unusual (non-gmail/outlook/yahoo/hotmail)
 - Missing salary info (flag, do not reject)
+
+RISK MULTIPLIERS — apply these BEFORE finalizing the score. Each one that applies reduces the hire probability:
+- Weakness in CORE stack (must-have skills, not nice-to-have): -15 to -25 points on skills dimension. If the candidate is weakest exactly where the role needs them most, this is not a gap — it's a fundamental mismatch.
+- Vague answers on technical topics in the phone screen (no specific examples, generic descriptions like "I do code reviews / component architecture"): treat as seniority red flag. Reduce seniority score by 10-20.
+- Passive job seeker (not actively looking, currently employed and not seeking): increases counter-offer risk. Flag explicitly.
+- Salary expectation significantly above role budget or market rate: increases offer rejection and counter-offer risk. Flag as logistics risk.
+- Combination of passive + above-market salary + core stack gap = HIGH risk profile. Should not Pass unless every other signal is exceptional.
 
 SCORING PHILOSOPHY — READ CAREFULLY:
 - Score from 0 to 100. Not a keyword counter — a hire probability estimate.
@@ -454,17 +561,41 @@ CANDIDATE DOCUMENTS:
 ${cvText}
 ---
 
-INSTRUCTIONS FOR MULTI-DOCUMENT INPUT:
-You may have received a CV and a phone screen / interview notes above, each labeled with === SECTION ===.
-Your job is to produce ONE single unified verdict and report — NOT separate analyses per document.
-Synthesize everything: use the CV for technical background and experience; use the phone screen to confirm or challenge what the CV claims, assess communication, seniority depth, and working style.
-If the phone screen resolves a CV gap → do not list it as a gap. If the phone screen reveals a new concern not in the CV → include it. The final verdict must reflect the full picture of both documents combined.
+EVALUATION RULES — APPLY ALL OF THESE BEFORE PRODUCING OUTPUT:
+
+## GROUNDING RULE (most important)
+Every claim in your output must be traceable to a specific statement in the transcript or resume.
+- The TRANSCRIPT always overrides the RESUME. If the resume lists a skill but in the call the candidate contradicts it, hedges significantly, or says they don't know it — reflect the transcript version, not the resume claim.
+- Never upgrade, infer, or fill in a skill the candidate did not explicitly confirm. If the candidate says "I don't really know X" or "I've only messed around with it a little" — that is a gap. Write it as a gap. Do not omit or soften it into a strength.
+- DO NOT infer tech skills from the CV when a transcript is present. A skill only counts as confirmed if the candidate demonstrated or spoke about it in the call.
+
+## LOGISTICS EXTRACTION (mandatory)
+Before writing "Not specified" for salary or availability, re-scan the transcript for:
+- Any number tied to salary, comp, "per year," or a range
+- Any answer to notice period or availability to start
+If either was stated, even approximately, include it verbatim. Only write "Not specified" if truly absent from the transcript.
+
+## NO GENERIC OR FILLER GAPS
+Do not invent abstract gaps ("limited data-driven decision making", "unclear metrics orientation") unless the candidate was actually asked about it and gave a vague or negative answer. If you cannot find textual evidence for a gap, do not list it — write "no clear gaps surfaced in this call" or focus only on evidenced gaps.
+Prioritize concrete, verifiable gaps: platform/tool mismatches, project scale mismatch, client type mismatch, stated lack of experience — over vague competency language.
+
+## SCALE AND CLIENT-TYPE MATCH
+Compare the candidate's actual named clients/projects (size, industry, complexity) against the role's context. A candidate who has only run small local projects is a meaningful gap for an enterprise or high-scale role. Flag this explicitly when relevant — do not treat all eCommerce experience as equivalent regardless of scale.
+
+## SEPARATE VAGUE ANSWERS FROM MISSING SKILLS — these are different risk types:
+- Skill/experience gap: candidate lacks a specific tool, platform, or type of experience the role needs.
+- Response quality risk: candidate was asked a direct question and gave vague, generic, or non-concrete answers (no specific example, had to ask for question to be repeated, hedged without detail). Call this out separately in screening_questions — do not fold it into Gaps.
+
+## OUTPUT REQUIREMENTS
+- For every strength, gap, and tech match: be able to justify it against a specific transcript moment.
+- When summarizing tech match: state the candidate's own framing of their proficiency (e.g. "primarily WordPress; has run some Shopify projects" rather than "5+ years Shopify") if the transcript shows a hierarchy of depth.
+- If the transcript doesn't clearly answer something the JD requires, write "not addressed in this call" — never default to a generic positive or negative assumption.
 
 Respond ONLY with valid JSON. No markdown, no code fences.
 
 {
   "verdict": "Pass" | "No Pass" | "Flag for Review",
-  "justification": "2-3 sentences explaining the decision based on specific evidence from the CV",
+  "justification": "2-3 sentences explaining the decision. If a phone screen is present, reference BOTH the CV evidence AND what was said in the call — especially any discrepancies. Never base the verdict solely on CV keywords.",
   "hard_rejection_reason": "exact reason if No Pass due to hard criterion, else null",
   "fit_score": 0-100 overall fit (weighted: skills 35% + seniority 30% + industry 20% + trajectory 15%),
   "score_breakdown": {
@@ -497,6 +628,7 @@ Respond ONLY with valid JSON. No markdown, no code fences.
     "passes_bar": true | false
   },
   "bamboohr_note": "ATS note for BambooHR. Plain English, no AI language, no fluff. Use this exact structure with bullet points:\n• Verdict: [Pass/Flag/No Pass] — [fit score]/100\n• Experience: [X years], last role: [Title at Company]\n• Strengths: [2-3 specific strengths with evidence from CV — e.g. 'Led migration of legacy monolith to microservices at Mercado Libre']\n• Concerns: [specific gaps or risks — if none, write 'None flagged']\n• Availability: [notice period + salary expectation if visible in CV, else 'Not specified']\n• Next step: [concrete action — e.g. 'Move to phone screen to validate X', 'Reject — hard miss on Y', 'Present to client']",
+  "confidence_in_verdict": "High" | "Medium" | "Low",
   "client_presentation": "Slack message to present this candidate to the hiring manager. This is the actual message they will receive — write it ready to paste into Slack. CRITICAL RULES: (1) ALWAYS name actual companies — never 'current company' or 'previous employer'. (2) ALWAYS add context after each fact. (3) BANNED: 'strong background', 'proven track record', 'passionate', 'results-driven', 'solid experience', 'multiple projects', 'various clients'. (4) Slack formatting: use *bold* for labels, bullet points with •.\n\nExact format:\n[✅/⚠️/❌] *[Candidate Name]* — [Role Title] — [fit_score]/100\n\n• *Experience:* [X years total] — [specific domain, e.g. 'Shopify storefronts for DTC brands in LATAM']\n• *Current role:* [Exact title] at [Exact Company Name] — [what they own: team size, systems built, scope]\n• *Relevant background:* [Previous role title] at [Exact Company Name] — [what's relevant to THIS role]\n• *Tech match:* [Each must-have tech with context — not a bare list. e.g. 'Shopify: 10yr with Liquid + custom themes; headless via Storefront API']\n• *Standout:* [One concrete thing that makes them interesting — specific project, scope, achievement]\n• *Team / working style:* [Remote history, people led, client-facing — only if evidenced and specific]\n• *Gaps:* [Honest gaps relevant to the role — if none write 'No critical gaps flagged']\n• *Logistics:* [Availability, salary expectation, location — omit if not in CV]\n• *Recommendation:* [One clear action — 'Move to technical interview', 'Present to client', 'Phone screen first to validate X', 'Reject — hard miss on Y']"
 }`
 }

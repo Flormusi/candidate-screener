@@ -1,4 +1,4 @@
-import { buildJDParsePrompt, buildBooleanPrompt, buildRefineBooleanPrompt, buildScreeningPrompt, buildComparePrompt, buildInterviewGuidePrompt, buildPostInterviewPrompt, buildBitacoraAnalysisPrompt, buildRejectionAnalysisPrompt, buildOutreachPrompt } from './prompts'
+import { buildJDParsePrompt, buildBooleanPrompt, buildRefineBooleanPrompt, buildScreeningPrompt, buildComparePrompt, buildInterviewGuidePrompt, buildPostInterviewPrompt, buildBitacoraAnalysisPrompt, buildRejectionAnalysisPrompt, buildOutreachPrompt, buildRoleInterpretationPrompt, buildChallengePrompt } from './prompts'
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
@@ -75,6 +75,43 @@ export async function screenCV(cvText, role, apiKey) {
   return callGroq(apiKey, buildScreeningPrompt(trimmed, role), 2000)
 }
 
+export async function screenCVTwoPass(cvText, role, apiKey, onProgress) {
+  const trimmed = cvText.length > 12000 ? cvText.slice(0, 12000) + '\n[CV truncated for length]' : cvText
+
+  // Pass 1
+  onProgress?.('pass1')
+  const first = await callGroq(apiKey, buildScreeningPrompt(trimmed, role), 2500)
+
+  // Pass 2 — challenge
+  onProgress?.('pass2')
+  const challenge = await callGroq(apiKey, buildChallengePrompt(first, trimmed, role), 2000)
+
+  // Merge: second pass wins on verdict/score, first pass keeps all display fields
+  const merged = {
+    ...first,
+    verdict: challenge.final_verdict ?? first.verdict,
+    fit_score: challenge.final_fit_score ?? first.fit_score,
+    score_breakdown: challenge.final_score_breakdown ?? first.score_breakdown,
+    justification: challenge.revised_justification ?? first.justification,
+    strengths: [
+      ...(first.strengths || []),
+      ...(challenge.added_strengths || []),
+    ].filter((s, i, a) => a.indexOf(s) === i),
+    gaps: [
+      ...(first.gaps || []).filter(g => !(challenge.removed_gaps || []).includes(g)),
+      ...(challenge.added_gaps || []),
+    ],
+    two_pass: {
+      first_verdict: first.verdict,
+      first_score: first.fit_score,
+      action: challenge.action,
+      challenge_notes: challenge.challenge_notes,
+    },
+  }
+
+  return merged
+}
+
 export async function generateInterviewGuide(screeningResult, candidateName, role, apiKey) {
   return callGroq(apiKey, buildInterviewGuidePrompt(screeningResult, candidateName, role), 2000)
 }
@@ -94,6 +131,10 @@ export async function analyzeBitacora(entries, period, apiKey) {
 
 export async function refineBooleans(currentResult, feedback, role, apiKey) {
   return callGroq(apiKey, buildRefineBooleanPrompt(currentResult, feedback, role), 2000)
+}
+
+export async function interpretRole(role, apiKey) {
+  return callGroq(apiKey, buildRoleInterpretationPrompt(role), 1500)
 }
 
 export async function generateOutreach(screeningResult, candidateName, role, apiKey) {

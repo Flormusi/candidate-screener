@@ -614,13 +614,13 @@ Respond ONLY with valid JSON. No markdown, no code fences.
     "seniority_depth": "1 sentence on real scope of responsibility — IC, lead, manager — and what it actually entailed based on CV evidence",
     "hidden_gems": ["notable signals not in the JD worth flagging — OSS contributions, patents, public talks, languages, side projects that show exceptional drive or domain depth"]
   },
-  "years_experience": estimated number or null,
+  "years_experience": "CALCULATION RULE: sum actual job date ranges from the resume, or use a duration the candidate directly stated in the call (e.g. 'three years', 'almost 15 years'). Never estimate from job titles, seniority language, or number of employers. If the resume includes unrelated prior experience (different industry/role), do not add it to a domain-specific total unless the candidate explicitly framed it that way. If dates are ambiguous or missing, return a string like '3 years in Shopify ecosystem per transcript; total career unclear' rather than a single confident integer. Return null only if no date information exists at all.",
   "location_detected": "location found in CV or null",
   "red_flags": ["specific flag 1", "..."] or [],
   "fake_profile_risk": "Low" | "Medium" | "High",
   "fake_profile_signals": ["specific signals detected"] or [],
   "strengths": ["2-3 concrete strengths relevant to this role — grounded in transcript if present, CV otherwise"],
-  "gaps": ["Gaps confirmed by evidence. RULE: if the candidate explicitly disclaimed a skill or described their own limitation in the call (e.g. 'I can't review code', 'I'm more administrative', 'I'm not technically familiar'), quote their exact words as the gap — this is the highest-priority gap type. Then list platform/tool/scale mismatches evidenced in the documents."],
+  "gaps": ["STEP 1 — scan the transcript for self-disclosed limitations FIRST, before anything else: (a) moments where the candidate describes their scope as narrower than the role requires ('I mainly do retainer work', 'I've only done a few implementations', 'I manage mid-market clients'), (b) explicit self-limiting language: 'I don't', 'I can't', 'I'm not familiar with', 'that's not really my responsibility', or any hedge on a claimed skill, (c) scope or client-type mismatch between what they described and what the role demands. Quote or closely paraphrase their exact words — these must be the FIRST gaps listed and treated as material if the role requires the opposite. STEP 2 — only after self-disclosed gaps: add platform/tool gaps IF that platform was actually named and discussed in the call or JD. NEVER invent a gap about a tool that was not raised in either document. If truly no limitation surfaced, write 'No material gaps surfaced in this call' — but this should be rare."],
   "borderline": true | false,
   "screening_questions": ["If borderline or Flag, 2-3 specific questions to ask in a screening call to validate the gaps. Each question should be direct and targeted to the specific uncertainty. Empty array if No Pass or clear Pass."],
   "english_written": {

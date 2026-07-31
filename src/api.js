@@ -86,13 +86,19 @@ export async function screenCVTwoPass(cvText, role, apiKey, onProgress) {
   onProgress?.('pass2')
   const challenge = await callGroq(apiKey, buildChallengePrompt(first, trimmed, role), 2000)
 
-  // Merge: second pass wins on verdict/score, first pass keeps all display fields
+  // Merge: second pass wins on verdict/score/notes, first pass keeps all other display fields
   const merged = {
     ...first,
     verdict: challenge.final_verdict ?? first.verdict,
     fit_score: challenge.final_fit_score ?? first.fit_score,
     score_breakdown: challenge.final_score_breakdown ?? first.score_breakdown,
     justification: challenge.revised_justification ?? first.justification,
+    bamboohr_note: (challenge.revised_bamboohr_note && challenge.revised_bamboohr_note !== 'null')
+      ? challenge.revised_bamboohr_note
+      : first.bamboohr_note,
+    client_presentation: (challenge.revised_client_presentation && challenge.revised_client_presentation !== 'null')
+      ? challenge.revised_client_presentation
+      : first.client_presentation,
     strengths: [
       ...(first.strengths || []),
       ...(challenge.added_strengths || []),

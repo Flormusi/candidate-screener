@@ -517,7 +517,8 @@ ${role.key_technologies?.join(', ') || 'N/A'}
 NICE TO HAVE:
 ${role.nice_to_have?.join(', ') || 'N/A'}
 
-AUTO-REJECT IF:
+AUTO-REJECT IF — VALIDATION REQUIRED BEFORE APPLYING ANY CRITERION:
+For any criterion involving years of experience: you MUST calculate the total from actual CV date ranges BEFORE deciding. Write the arithmetic explicitly in hard_rejection_reason: e.g. "Role A 2019–2022 = 3yr + Role B 2022–present = 2yr = 5yr total. Criterion requires 8yr. REJECT." If the total meets the criterion, do NOT reject — even if it feels close. If dates are missing or ambiguous, use Flag for Review, never No Pass.
 ${role.hard_reject_if?.map(r => `- ${r}`).join('\n') || 'none specified'}
 ${role.extra_requirements ? `\nADDITIONAL CLIENT REQUIREMENTS (treat as hard criteria — reject or flag if missing):\n${role.extra_requirements}` : ''}
 ${role.rejection_feedback?.length > 0 ? `\nCLIENT REJECTION FEEDBACK — LEARN FROM THESE (${role.rejection_feedback.length} rejected candidates):\nThe client previously rejected these candidates — use this to calibrate your screening:\n${role.rejection_feedback.map(f => `- ${f.name}: "${f.feedback}"`).join('\n')}\n` : ''}

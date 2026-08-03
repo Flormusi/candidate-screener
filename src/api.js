@@ -87,6 +87,19 @@ export async function screenCVTwoPass(cvText, role, apiKey, onProgress) {
   onProgress?.('pass2')
   const challenge = await callGroq(apiKey, buildChallengePrompt(first, trimmed, role), 2000)
 
+  // Safety net: if model hard-rejected on years_experience but the candidate's
+  // calculated years meet the minimum, override to Flag for Review
+  const yearsNum = typeof first.years_experience === 'number' ? first.years_experience : parseFloat(first.years_experience)
+  const meetsYears = role.years_experience_min && !isNaN(yearsNum) && yearsNum >= role.years_experience_min
+  if (meetsYears && first.verdict === 'No Pass' && first.hard_rejection_reason) {
+    const reasonLower = first.hard_rejection_reason.toLowerCase()
+    if (reasonLower.includes('year') || reasonLower.includes('experience')) {
+      first.verdict = 'Flag for Review'
+      first.hard_rejection_reason = null
+      first._overridden = `Auto-rejection overridden: model calculated ${yearsNum}yr but role requires ${role.years_experience_min}yr — candidate appears to meet minimum. Flagged for human review.`
+    }
+  }
+
   // Merge: second pass wins on verdict/score/notes, first pass keeps all other display fields
   const merged = {
     ...first,

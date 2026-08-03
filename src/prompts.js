@@ -588,9 +588,17 @@ Compare the candidate's actual named clients/projects (size, industry, complexit
 - Skill/experience gap: candidate lacks a specific tool, platform, or type of experience the role needs.
 - Response quality risk: candidate was asked a direct question and gave vague, generic, or non-concrete answers (no specific example, had to ask for question to be repeated, hedged without detail). Call this out separately in screening_questions — do not fold it into Gaps.
 
+## HARD REJECTION VALIDATION — REQUIRED BEFORE APPLYING AUTO-REJECT
+Before setting verdict to "No Pass" based on an AUTO-REJECT IF criterion, you MUST verify the criterion is actually met:
+1. List the date ranges or durations you are counting (e.g. "Role A: 2019–2022 = 3yr; Role B: 2022–present = 2yr; total = 5yr").
+2. Only reject if your calculation confirms the criterion is NOT met. If the evidence shows the candidate MEETS the criterion, do not apply the rejection.
+3. Never apply a hard rejection you cannot arithmetically prove from the documents. If dates are missing or ambiguous, use "Flag for Review" and note the uncertainty — do not default to rejection.
+4. The hard_rejection_reason field must include the calculation, not just restate the criterion text.
+
 ## OUTPUT REQUIREMENTS
-- For every strength, gap, and tech match: be able to justify it against a specific transcript moment.
-- When summarizing tech match: state the candidate's own framing of their proficiency (e.g. "primarily WordPress; has run some Shopify projects" rather than "5+ years Shopify") if the transcript shows a hierarchy of depth.
+- For every strength, gap, and tech match: be able to justify it against a specific transcript moment or resume entry.
+- Strengths must be SPECIFIC: name the company, project, number, or domain. Never write generic phrases like "Experience in digital project management" — write what they did, where, and at what scale.
+- When summarizing tech match: state the candidate's own framing of their proficiency if the transcript shows a hierarchy of depth.
 - If the transcript doesn't clearly answer something the JD requires, write "not addressed in this call" — never default to a generic positive or negative assumption.
 
 Respond ONLY with valid JSON. No markdown, no code fences.

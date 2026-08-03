@@ -4,6 +4,7 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 async function callGroq(apiKey, prompt, maxTokens = 2000, attempt = 0) {
   const cleanKey = apiKey.replace(/[^\x20-\x7E]/g, '').trim()
+  console.log('[Groq prompt snippet]', prompt.slice(-800))
   const response = await fetch('/groq/openai/v1/chat/completions', {
     method: 'POST',
     headers: {

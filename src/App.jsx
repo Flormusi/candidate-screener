@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { parseJD, generateBooleans, refineBooleans, screenCV, compareCVs, generateInterviewGuide, analyzeInterview, analyzeRejections, generateOutreach, fetchNinjaProfile, ninjaProfileToText } from './api'
+import { parseJD, generateBooleans, refineBooleans, screenCV, screenCVTwoPass, compareCVs, generateInterviewGuide, analyzeInterview, analyzeRejections, generateOutreach, fetchNinjaProfile, ninjaProfileToText, interpretRole } from './api'
 import { autoExportScreening } from './export'
 import { logSourcingSession, getAllScreenings, isToday } from './metrics'
 import { extractTextFromPDF } from './pdfReader'
@@ -936,6 +936,7 @@ function ScreeningPanel({ role, apiKey }) {
   const [dragging, setDragging] = useState(false)
   const [outreach, setOutreach] = useState(null)
   const [outreachLoading, setOutreachLoading] = useState(false)
+  const [screenPass, setScreenPass] = useState(null) // 'pass1' | 'pass2' | null
 
   const processFiles = async (files) => {
     if (!files.length) return
@@ -984,10 +985,11 @@ function ScreeningPanel({ role, apiKey }) {
   const screen = async () => {
     if (!apiKey) return setError('Save your API key first.')
     if (!cvText.trim()) return setError('Paste a CV first.')
-    setLoading(true); setError(null); setResult(null)
+    setLoading(true); setError(null); setResult(null); setScreenPass(null)
     try {
-      const r = await screenCV(cvText, role, apiKey)
+      const r = await screenCVTwoPass(cvText, role, apiKey, setScreenPass)
       setResult(r)
+      setScreenPass(null)
       setHistory(h => [{ name: candidateName || 'Unknown', result: r, ts: Date.now() }, ...h.slice(0, 49)])
       autoExportScreening(candidateName || 'Unknown', r, role)
     } catch (e) {
@@ -1143,7 +1145,11 @@ function ScreeningPanel({ role, apiKey }) {
       {error && <p className="error-msg">{error}</p>}
       <div className="screen-actions">
         <button className="btn btn-primary" onClick={screen} disabled={loading || !cvText.trim()}>
-          {loading ? '⏳ Screening…' : '✦ Screen'}
+          {loading
+            ? screenPass === 'pass1' ? '🔍 Pass 1 — Reading CV…'
+            : screenPass === 'pass2' ? '🧠 Pass 2 — Challenging verdict…'
+            : '⏳ Screening…'
+            : '✦ Screen'}
         </button>
         <span className="screen-actions-sep">or</span>
         <input ref={batchRef} type="file" accept=".pdf" multiple style={{ display: 'none' }} onChange={onBatchUpload} />
@@ -1218,6 +1224,22 @@ function ScreeningPanel({ role, apiKey }) {
               </span>
             )}
           </div>
+
+          {/* Two-pass badge */}
+          {result.two_pass && (
+            <div className="two-pass-badge">
+              <span className="two-pass-icon">⚡</span>
+              <span className="two-pass-label">Two-pass verified</span>
+              <span className="two-pass-action">
+                {result.two_pass.action === 'confirm' && `✓ Confirmed ${result.two_pass.first_verdict}`}
+                {result.two_pass.action === 'upgrade' && `↑ Upgraded from ${result.two_pass.first_verdict} → ${result.verdict}`}
+                {result.two_pass.action === 'downgrade' && `↓ Downgraded from ${result.two_pass.first_verdict} → ${result.verdict}`}
+              </span>
+              {result.two_pass.challenge_notes && (
+                <span className="two-pass-notes">{result.two_pass.challenge_notes}</span>
+              )}
+            </div>
+          )}
 
           {/* Download button */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
@@ -2012,6 +2034,97 @@ function ComparePanel({ role, apiKey }) {
   )
 }
 
+function RoleIntelPanel({ role, apiKey, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const intel = role.interpretation
+
+  const run = async () => {
+    if (!apiKey) return setError('Save your API key first.')
+    setLoading(true); setError(null)
+    try {
+      const result = await interpretRole(role, apiKey)
+      onUpdate({ ...role, interpretation: result })
+    } catch (e) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="role-intel-panel">
+      <div className="role-intel-header">
+        <h3>🧠 Role Intelligence</h3>
+        <button className="btn btn-ghost btn-sm" onClick={run} disabled={loading}>
+          {loading ? '⏳ Interpreting…' : intel ? '↺ Re-interpret' : '✦ Interpret role'}
+        </button>
+      </div>
+
+      {error && <p className="error-msg">{error}</p>}
+
+      {!intel && !loading && (
+        <p className="hint" style={{ fontSize: 12, color: 'var(--muted)' }}>
+          Generá una interpretación profunda de lo que el cliente realmente necesita. Se inyecta automáticamente en cada screening.
+        </p>
+      )}
+
+      {intel && (
+        <div className="role-intel-body">
+          <div className="intel-block intel-block-full">
+            <span className="intel-label">What the client really needs</span>
+            <p className="intel-value">{intel.real_need}</p>
+          </div>
+
+          <div className="intel-grid">
+            <div className="intel-block">
+              <span className="intel-label">Pattern</span>
+              <p className="intel-value">
+                {intel.builder_or_scaler === 'Builder' ? '🏗' : intel.builder_or_scaler === 'Scaler' ? '📈' : '🔄'}{' '}
+                <strong>{intel.builder_or_scaler}</strong> — {intel.builder_or_scaler_reason}
+              </p>
+            </div>
+            <div className="intel-block">
+              <span className="intel-label">Ideal background</span>
+              <p className="intel-value">{intel.ideal_stage_background}</p>
+            </div>
+          </div>
+
+          <div className="intel-grid">
+            {intel.hidden_requirements?.length > 0 && (
+              <div className="intel-block">
+                <span className="intel-label">🔍 Hidden requirements</span>
+                <ul className="intel-list">
+                  {intel.hidden_requirements.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+            {intel.likely_dealbreakers?.length > 0 && (
+              <div className="intel-block">
+                <span className="intel-label">🚫 Likely dealbreakers</span>
+                <ul className="intel-list gaps">
+                  {intel.likely_dealbreakers.map((d, i) => <li key={i}>{d}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {intel.ideal_profile_summary && (
+            <div className="intel-block intel-block-full">
+              <span className="intel-label">Ideal candidate profile</span>
+              <p className="intel-value">{intel.ideal_profile_summary}</p>
+            </div>
+          )}
+
+          {intel.screening_lens && (
+            <div className="intel-block intel-block-full intel-block-lens">
+              <span className="intel-label">🔬 How to read CVs for this role</span>
+              <p className="intel-value">{intel.screening_lens}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RoleDetail({ role, apiKey, ninjaPearKey, onUpdate }) {
   const [tab, setTab] = useState('screen')
   const [extras, setExtras] = useState(role.extra_requirements || '')
@@ -2104,6 +2217,7 @@ function RoleDetail({ role, apiKey, ninjaPearKey, onUpdate }) {
       )}
       {tab === 'info' && (
         <div className="panel">
+          <RoleIntelPanel role={enrichedRole} apiKey={apiKey} onUpdate={onUpdate} />
           <div className="two-col">
             <div className="result-section">
               <h4>Must Have</h4>

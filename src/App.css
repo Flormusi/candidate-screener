@@ -793,3 +793,71 @@ input[type="text"]:focus, input[type="password"]:focus { border-color: var(--acc
   display: block;
   line-height: 1.4;
 }
+
+/* ── Role Intelligence ── */
+.role-intel-panel {
+  background: linear-gradient(135deg, rgba(99,102,241,.06) 0%, rgba(139,92,246,.04) 100%);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.role-intel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.role-intel-header h3 { font-size: 15px; font-weight: 700; margin: 0; }
+.role-intel-body { display: flex; flex-direction: column; gap: 10px; }
+.intel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.intel-block {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.intel-block-full { grid-column: 1 / -1; }
+.intel-block-lens { border-left: 3px solid rgba(99,102,241,.4); }
+.intel-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.intel-value { font-size: 13px; color: var(--text); line-height: 1.5; margin: 0; }
+.intel-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--text);
+}
+.intel-list.gaps li { color: var(--nope); }
+
+/* ── Two-pass badge ── */
+.two-pass-badge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(99,102,241,.07);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.two-pass-icon { font-size: 13px; }
+.two-pass-label { font-weight: 700; color: #818cf8; }
+.two-pass-action { color: var(--text); font-weight: 600; }
+.two-pass-notes { color: var(--muted); font-size: 11px; width: 100%; margin-top: 2px; line-height: 1.4; }

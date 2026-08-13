@@ -2260,7 +2260,7 @@ function RoleDetail({ role, apiKey, ninjaPearKey, onUpdate }) {
           <div className="result-section">
             <h4>Additional Requirements</h4>
             <p className="hint" style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-              Extra context injected into every screening and sourcing prompt (e.g. "agency experience required").
+              Extra context injected into every screening and sourcing prompt. Only lines phrased as mandatory ("required", "must have") are treated as hard filters — everything else (companies, locations, certs, "plus"/"nice to have" items, or multiple acceptable tracks) is scored as a bonus signal, never a reason to reject.
             </p>
             <textarea
               className="jd-textarea"

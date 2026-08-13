@@ -22,7 +22,7 @@ Respond ONLY with valid JSON. No markdown, no code fences.
   "years_experience_min": number or null,
   "key_technologies": ["main tools/languages/frameworks"],
   "timezone_requirement": "timezone overlap requirement if any, else null",
-  "hard_reject_if": ["conditions that should auto-reject a candidate — infer from JD"]
+  "hard_reject_if": ["ONLY conditions the JD frames as truly mandatory/non-negotiable (explicit 'required', 'must have', 'only candidates with X will be considered'). Do NOT include specific platforms, tools, or certifications that are merely mentioned or described as preferred/nice-to-have — those belong in must_have/nice_to_have, not here."]
 }`
 }
 
@@ -520,7 +520,8 @@ ${role.nice_to_have?.join(', ') || 'N/A'}
 AUTO-REJECT IF — VALIDATION REQUIRED BEFORE APPLYING ANY CRITERION:
 For any criterion involving years of experience: you MUST calculate the total from actual CV date ranges BEFORE deciding. Write the arithmetic explicitly in hard_rejection_reason: e.g. "Role A 2019–2022 = 3yr + Role B 2022–present = 2yr = 5yr total. Criterion requires 8yr. REJECT." If the total meets the criterion, do NOT reject — even if it feels close. If dates are missing or ambiguous, use Flag for Review, never No Pass.
 ${role.hard_reject_if?.map(r => `- ${r}`).join('\n') || 'none specified'}
-${role.extra_requirements ? `\nADDITIONAL CLIENT REQUIREMENTS (treat as hard criteria — reject or flag if missing):\n${role.extra_requirements}` : ''}
+Only reject on the items above if they are genuinely disqualifying (explicitly mandatory in the JD). If an item is really a strong preference (a specific platform, tool, or certification the client would like but did not frame as non-negotiable), do NOT auto-reject for it — treat it as a scoring signal instead.
+${role.extra_requirements ? `\nADDITIONAL CONTEXT FROM RECRUITER (read carefully before deciding what is a hard filter vs a scoring signal):\n${role.extra_requirements}\n\nHOW TO APPLY THE TEXT ABOVE:\n- Only treat a line as a HARD REJECT criterion if it uses explicit mandatory language: "required", "must have", "non-negotiable", "only accept", "reject if missing", etc.\n- Everything else — company names, agency names, cities/regions, certifications, platforms described as "plus", "bonus", "preferred", "nice to have", or simply listed without mandatory language — is a POSITIVE SCORING SIGNAL, never a rejection reason. Add points for a match; do not subtract or reject for its absence.\n- If the text describes TWO OR MORE distinct acceptable candidate profiles (e.g. "Track A" / "Track B", or different seniority+background combinations), evaluate the candidate against whichever profile fits best and do not penalize them for not matching the other profile. State explicitly in the justification which profile/track the candidate was evaluated against.\n- If the text lists specific companies/agencies as a positive signal, and the candidate's background includes one of those companies, this can OFFSET a seniority or years-of-experience gap — do not apply a strict experience floor as a hard cutoff when this signal is present and delivery evidence (client-facing, agency/consultancy work) is otherwise solid.` : ''}
 ${role.rejection_feedback?.length > 0 ? `\nCLIENT REJECTION FEEDBACK — LEARN FROM THESE (${role.rejection_feedback.length} rejected candidates):\nThe client previously rejected these candidates — use this to calibrate your screening:\n${role.rejection_feedback.map(f => `- ${f.name}: "${f.feedback}"`).join('\n')}\n` : ''}
 FLAG FOR REVIEW (not auto-reject):
 - No LinkedIn URL provided
@@ -547,6 +548,7 @@ SCORING PHILOSOPHY — READ CAREFULLY:
   * Promoted multiple times at the same employer (trusted, high performer)
   * Delivered at exactly the same company stage as this role requires
   * OSS contributions, patents, public talks in the domain
+  * Comes from a company/agency flagged as a positive signal in the recruiter's ADDITIONAL CONTEXT — weight it per how it was described (e.g. track-specific pedigree, "semillero" source)
 - "gaps" in the JSON should only list things that genuinely block the hire — not every missing keyword
 
 FRAUD / FAKE PROFILE RED FLAGS TO DETECT:

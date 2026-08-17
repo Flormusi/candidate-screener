@@ -1,6 +1,6 @@
 import { buildJDParsePrompt, buildBooleanPrompt, buildRefineBooleanPrompt, buildScreeningPrompt, buildComparePrompt, buildInterviewGuidePrompt, buildPostInterviewPrompt, buildBitacoraAnalysisPrompt, buildRejectionAnalysisPrompt, buildOutreachPrompt, buildRoleInterpretationPrompt, buildChallengePrompt } from './prompts'
 
-const GROQ_MODEL = 'openai/gpt-oss-120b'
+const GROQ_MODEL = 'llama-3.1-8b-instant'
 
 async function callGroq(apiKey, prompt, maxTokens = 2000, attempt = 0) {
   const cleanKey = apiKey.replace(/[^\x20-\x7E]/g, '').trim()

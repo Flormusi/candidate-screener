@@ -129,6 +129,14 @@ export async function screenCVTwoPass(cvText, role, apiKey, onProgress) {
     },
   }
 
+  // Keep the copy-paste outputs consistent with the final verdict and score.
+  // The model sometimes writes a different number into these texts than the one it scored.
+  const syncScore = (text) => typeof text === 'string'
+    ? text.replace(/\b\d{1,3}\s*\/\s*100\b/g, `${merged.fit_score}/100`)
+    : text
+  merged.bamboohr_note = syncScore(merged.bamboohr_note)
+  merged.client_presentation = syncScore(merged.client_presentation)
+
   return merged
 }
 

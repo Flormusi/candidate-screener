@@ -404,7 +404,7 @@ function JDUploader({ apiKey, onParsed }) {
       />
       {error && <p className="error-msg">{error}</p>}
       <button className="btn btn-primary" onClick={parse} disabled={loading}>
-        {loading ? '⏳ Parsing JD…' : '✦ Parse JD with Claude'}
+        {loading ? '⏳ Parsing JD…' : '✦ Parse JD with AI'}
       </button>
     </div>
   )

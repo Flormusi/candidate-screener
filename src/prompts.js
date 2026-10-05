@@ -44,6 +44,11 @@ CANDIDATE DOCUMENTS:
 ${cvText}
 ---
 
+EVIDENCE SOURCE — decide this first:
+- If CANDIDATE DOCUMENTS include a phone screen, call notes or an interview transcript, apply the transcript rules below as written.
+- If they contain ONLY a CV/resume, there is no call. Ground every strength and gap in the CV text instead. Never mention a call, interview or transcript, never say something was "not confirmed in the call", and do not lower the score just because no call happened.
+- Never describe something as "unusual" or suspicious unless it is actually written in the CV (e.g. do not call an email domain unusual when no email appears). Missing LinkedIn or salary can still be flagged as missing, per the screening rules.
+
 YOUR JOB — apply each of these in order:
 
 1. GROUNDING CHECK: For every strength and gap in the first pass, ask: is this traceable to a specific transcript statement? If a strength is based on a CV keyword not confirmed in the call — remove it or mark it unconfirmed. If the candidate explicitly downplayed or disclaimed a skill, that is a gap regardless of what the CV says.
@@ -525,7 +530,7 @@ ${role.extra_requirements ? `\nADDITIONAL CONTEXT FROM RECRUITER (read carefully
 ${role.rejection_feedback?.length > 0 ? `\nCLIENT REJECTION FEEDBACK — LEARN FROM THESE (${role.rejection_feedback.length} rejected candidates):\nThe client previously rejected these candidates — use this to calibrate your screening:\n${role.rejection_feedback.map(f => `- ${f.name}: "${f.feedback}"`).join('\n')}\n` : ''}
 FLAG FOR REVIEW (not auto-reject):
 - No LinkedIn URL provided
-- Email domain is unusual (non-gmail/outlook/yahoo/hotmail)
+- Email domain is unusual (non-gmail/outlook/yahoo/hotmail) — ONLY if an email address actually appears in the CV; if there is no email, do not mention email at all
 - Missing salary info (flag, do not reject)
 
 RISK MULTIPLIERS — apply these BEFORE finalizing the score. Each one that applies reduces the hire probability:

@@ -2,43 +2,11 @@ import { buildJDParsePrompt, buildBooleanPrompt, buildRefineBooleanPrompt, build
 
 const GROQ_MODEL = 'openai/gpt-oss-20b'
 
-async function callGroq(apiKey, prompt, maxTokens = 2000, attempt = 0) {
-  const cleanKey = apiKey.replace(/[^\x20-\x7E]/g, '').trim()
-  console.log('[Groq prompt snippet]', prompt.slice(-800))
-  const response = await fetch('/groq/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${cleanKey}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      max_tokens: maxTokens,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    const msg = err?.error?.message || `API error ${response.status}`
-    // Auto-retry on rate limit (up to 3 times)
-    if (response.status === 429 && attempt < 3) {
-      const waitMatch = msg.match(/try again in ([\d.]+)s/i)
-      const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 1000 : 15000
-      await new Promise(r => setTimeout(r, waitMs))
-      return callGroq(apiKey, prompt, maxTokens, attempt + 1)
-    }
-    throw new Error(msg)
-  }
-
-  const data = await response.json()
-  const text = data.choices?.[0]?.message?.content?.trim()
-  if (!text) throw new Error('Empty response from Groq')
-
+function parseLooseJSON(text) {
+  if (!text || typeof text !== 'string') return null
   // Strip code fences
-  let clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+  let clean = text.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
 
   const tryParse = (s) => {
     try { return JSON.parse(s) } catch { return null }
@@ -60,15 +28,68 @@ async function callGroq(apiKey, prompt, maxTokens = 2000, attempt = 0) {
     if (parsed) return parsed
   }
 
+  return null
+}
+
+async function callGroq(apiKey, prompt, maxTokens = 2000, attempt = 0, jsonAttempt = 0) {
+  const cleanKey = apiKey.replace(/[^\x20-\x7E]/g, '').trim()
+  console.log('[Groq prompt snippet]', prompt.slice(-800))
+  const response = await fetch('/groq/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${cleanKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      max_tokens: maxTokens,
+      temperature: 0.2,
+      // gpt-oss is a reasoning model: keep reasoning short so the JSON answer isn't cut off
+      reasoning_effort: 'low',
+      // Groq's strict JSON mode rejects slightly malformed output (common with long Boolean strings full of quotes).
+      // After two strict failures, retry once without it and rely on the tolerant parser below.
+      ...(jsonAttempt < 2 ? { response_format: { type: 'json_object' } } : {}),
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    const msg = err?.error?.message || `API error ${response.status}`
+    // Auto-retry on rate limit (up to 3 times)
+    if (response.status === 429 && attempt < 3) {
+      const waitMatch = msg.match(/try again in ([\d.]+)s/i)
+      const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 1000 : 15000
+      await new Promise(r => setTimeout(r, waitMs))
+      return callGroq(apiKey, prompt, maxTokens, attempt + 1, jsonAttempt)
+    }
+    // JSON validation failure: try to salvage the model's output, otherwise retry
+    const isJsonFailure = err?.error?.code === 'json_validate_failed' || /failed to validate json/i.test(msg)
+    if (isJsonFailure) {
+      const salvaged = parseLooseJSON(err?.error?.failed_generation)
+      if (salvaged) return salvaged
+      if (jsonAttempt < 2) return callGroq(apiKey, prompt, maxTokens, attempt, jsonAttempt + 1)
+      throw new Error('The AI returned an invalid format. Please try again.')
+    }
+    throw new Error(msg)
+  }
+
+  const data = await response.json()
+  const text = data.choices?.[0]?.message?.content?.trim()
+  if (!text) throw new Error('Empty response from Groq')
+
+  const parsed = parseLooseJSON(text)
+  if (parsed) return parsed
+  if (jsonAttempt < 2) return callGroq(apiKey, prompt, maxTokens, attempt, jsonAttempt + 1)
   throw new Error('Failed to parse Groq response as JSON')
 }
 
 export async function parseJD(jdText, apiKey) {
-  return callGroq(apiKey, buildJDParsePrompt(jdText), 1000)
+  return callGroq(apiKey, buildJDParsePrompt(jdText), 2000)
 }
 
 export async function generateBooleans(role, apiKey) {
-  return callGroq(apiKey, buildBooleanPrompt(role), 1000)
+  return callGroq(apiKey, buildBooleanPrompt(role), 3000)
 }
 
 export async function screenCV(cvText, role, apiKey) {
@@ -166,7 +187,7 @@ export async function interpretRole(role, apiKey) {
 }
 
 export async function generateOutreach(screeningResult, candidateName, role, apiKey) {
-  return callGroq(apiKey, buildOutreachPrompt(screeningResult, candidateName, role), 1000)
+  return callGroq(apiKey, buildOutreachPrompt(screeningResult, candidateName, role), 2000)
 }
 
 export async function fetchNinjaProfile(firstName, lastName, employerWebsite, ninjaPearKey) {
